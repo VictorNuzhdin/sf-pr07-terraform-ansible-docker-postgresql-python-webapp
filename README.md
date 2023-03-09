@@ -2,7 +2,9 @@
 For Skill Factory study project (PR07 or PR04?)
 
 <br>
-01-10. см. в [README.txt](README.txt) <br><br>
+--КРАТКАЯ ИНСТРУКЦИЯ<br>
+
+01-10. см. в [README.txt](README.txt)
 
 11 Скриншоты на различных этапах создания проекта
 
