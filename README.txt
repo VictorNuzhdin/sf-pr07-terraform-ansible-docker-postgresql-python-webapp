@@ -27,10 +27,10 @@ $ git clone https://github.com/VictorNuzhdin/sf-pr07-terraform-ansible-docker-po
 - с помощью Terraform создаем виртуальную машину в Yandex.Cloud
 - в результате получаем Terraform output переменную с публичным ip-адресом ВМ
 
-cd terraform
-terraform validate
-terraform plan
-terraform apply
+$ cd terraform
+$ terraform validate
+$ terraform plan
+$ terraform apply
 
 =OTPUT:
 Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
