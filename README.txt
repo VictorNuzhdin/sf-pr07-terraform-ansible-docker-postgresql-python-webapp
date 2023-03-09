@@ -4,28 +4,28 @@ For Skill Factory study project (PR07 or PR04?)
 
 --КРАТКАЯ ИНСТРУКЦИЯ
 
-* Управляющий хост (Ubuntu 22.04) - primary host (U22)
-  - условно локальный хост с которого происходит создание ресурсов в Облаке с помощью Terraform 
-    и применение к ним Ansible конфигурации с Ролями "postgresql" и "docker" (IaC конфигурация);
-* Управляемый хост (Ubuntu 20.04) - secondary host (U20)
+1 Управляющий хост (Ubuntu 22.04) - primary host (U22)
+- условно локальный хост с которого происходит создание ресурсов в Облаке с помощью Terraform 
+  и применение к ним Ansible конфигурации с Ролями "postgresql" и "docker" (IaC конфигурация);
+2 Управляемый хост (Ubuntu 20.04) - secondary host (U20)
   - удаленный хост в Облаке к которому применяется IaC конфигурация;
 
 
-01.	На U22
-	- клонируем репозиторий в рабочий каталог
+01. На U22
+- клонируем репозиторий в рабочий каталог
 
-cd work_dir
-git clone https://github.com/VictorNuzhdin/sf-pr07-terraform-ansible-docker-postgresql-python-webapp.git
+$ cd work_dir
+$ git clone https://github.com/VictorNuzhdin/sf-pr07-terraform-ansible-docker-postgresql-python-webapp.git
 
 
 02. На U22
-	- настраиваем Terraform и Ansible окружение
-    - описание вне рамок текущего проекта
+- настраиваем Terraform и Ansible окружение
+- описание вне рамок текущего проекта
 
 
 03. На U22
-	- с помощью Terraform создаем виртуальную машину в Yandex.Cloud
-    - в результате получаем Terraform output переменную с публичным ip-адресом ВМ
+- с помощью Terraform создаем виртуальную машину в Yandex.Cloud
+- в результате получаем Terraform output переменную с публичным ip-адресом ВМ
 
 cd terraform
 terraform validate
@@ -39,64 +39,64 @@ vm1_name_external_ip = "ubuntu1: 158.160.14.119"
 
 
 04. На U22
-	- подключаемся к U20 по ssh:
-    - ВМ на SH создается со встроенной учетной записью "ubuntu"
-	  настроена авторизация по ssh-ключу
-	  который должен быть расположен по пути
-	  ~/.ssh/id_ed25519
+- подключаемся к U20 по ssh:
+- ВМ на SH создается со встроенной учетной записью "ubuntu"
+  настроена авторизация по ssh-ключу
+  который должен быть расположен по пути
+  ~/.ssh/id_ed25519
 
-ssh -i ~/.ssh/id_ed25519 ubuntu@158.160.14.119
+$ ssh -i ~/.ssh/id_ed25519 ubuntu@158.160.14.119
 
 
 05. На U20
-	- создаем учетную запись "devops" и настравиваем авторизацию по ssh ключу
+- создаем учетную запись "devops" и настравиваем авторизацию по ssh ключу
 
-sudo -i
-useradd -m -G sudo -s /bin/bash devops
-passwd devops
-echo "devops  ALL=(ALL)  NOPASSWD: ALL" > /etc/sudoers.d/devops
-ssh-keygen -t ed25519 -C "devops@acme.local"
+$ sudo -i
+# useradd -m -G sudo -s /bin/bash devops
+# passwd devops
+# echo "devops  ALL=(ALL)  NOPASSWD: ALL" > /etc/sudoers.d/devops
+# exit
+$ ssh-keygen -t ed25519 -C "devops@acme.local"
 
 
 06. На U22
-	- копируем public часть pivate ключа учетной записи "devops" на U20 в список разрешенных известных хостов
-	  для возможности авторизации по ключу
-	- подключаемся по ssh к U20 (подключение должно пройти сразу без запроса пароля и выходим из ssh сессии)
+- копируем public часть pivate ключа учетной записи "devops" на U20 в список разрешенных известных хостов
+  для возможности авторизации по ключу
+- подключаемся по ssh к U20 (подключение должно пройти сразу без запроса пароля и выходим из ssh сессии)
 	
-ssh-copy-id -i ~/.ssh/id_ed25519 devops@158.160.14.119
-ssh devops@158.160.14.119
-exit
+$ ssh-copy-id -i ~/.ssh/id_ed25519 devops@158.160.14.119
+$ ssh devops@158.160.14.119
+$ exit
 
 
 07. На U22
-	- выполняем Ansible тест ssh ответа от U20 (ping-pong тест)
-	  при этом пароль запрашиваться не должен если все настроено правильно;
-	- применяем Ansiblе Роли "postgresql" и "docker" к U20
+- выполняем Ansible тест ssh ответа от U20 (ping-pong тест)
+  при этом пароль запрашиваться не должен если все настроено правильно;
+- применяем Ansiblе Роли "postgresql" и "docker" к U20
 
-ansible --version | grep "ansible 2"
-=
-	ansible 2.10.8
-
-
-ansible all -m ping
-=
-	158.160.14.119 | SUCCESS => {
-		"ansible_facts": {
-			"discovered_interpreter_python": "/usr/bin/python3"
-		},
-		"changed": false,
-		"ping": "pong"
-	}
+$ ansible --version | grep "ansible 2"
+=OUTPUT:
+  ansible 2.10.8
 
 
-ansible-playbook /etc/ansible/playbooks/postgresql.yml --syntax-check
-=
-	playbook: /etc/ansible/playbooks/postgresql.yml
+$ ansible all -m ping
+=OUTPUT:
+158.160.14.119 | SUCCESS => {
+	"ansible_facts": {
+		"discovered_interpreter_python": "/usr/bin/python3"
+	},
+	"changed": false,
+	"ping": "pong"
+}
 
 
-ansible-playbook /etc/ansible/playbooks/postgresql.yml --limit "ubuntu_server_vm1"
-=
-<pre>
+$ ansible-playbook /etc/ansible/playbooks/postgresql.yml --syntax-check
+=OUTPUT:
+playbook: /etc/ansible/playbooks/postgresql.yml
+
+
+$ ansible-playbook /etc/ansible/playbooks/postgresql.yml --limit "ubuntu_server_vm1"
+=OUTPUT:
 PLAY [app_servers] *********************************************************************************************************************************
 
 TASK [Gathering Facts] *****************************************************************************************************************************
@@ -222,17 +222,15 @@ changed: [158.160.14.119]
 
 PLAY RECAP *****************************************************************************************************************************************
 158.160.14.119             : ok=29   changed=9    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
-</pre>
 
 
-
+---
 $ ansible-playbook /etc/ansible/playbooks/docker.yml --syntax-check
-=
-	playbook: /etc/ansible/playbooks/docker.yml
-
+=OUTPUT:
+  playbook: /etc/ansible/playbooks/docker.yml
 
 $ ansible-playbook /etc/ansible/playbooks/docker.yml --limit "ubuntu_server_vm1"
-<pre>
+=OUTPUT:
 PLAY [app_servers] *********************************************************************************************************************************
 
 TASK [Gathering Facts] *****************************************************************************************************************************
@@ -295,30 +293,30 @@ ok: [158.160.14.119] => {
 
 PLAY RECAP *****************************************************************************************************************************************
 158.160.14.119             : ok=15   changed=11   unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
-</pre>
 
 
+---
 08. На U22 (после успешного применение Ansible ролей к U20)
-    - подключаемся к U20 по ssh
-	- проверяем работу PostgreSQL и Docker
-	- также проверяем созданную БД PostgreSQL "acme_db" и пользователя для работы с БД "acme_db_admin"
+- подключаемся к U20 по ssh
+- проверяем работу PostgreSQL и Docker
+- также проверяем созданную БД PostgreSQL "acme_db" и пользователя для работы с БД "acme_db_admin"
 	
-docker --version													## Docker version 23.0.1, build a5ee5b1
-systemctl status docker | grep Active								## Active: active (running) since Wed 2023-03-08 17:46:03 UTC; 7min ago
-systemctl status postgresql | grep Active							##= Active: active (exited) since Wed 2023-03-08 17:36:10 UTC; 17min ago
-sudo -u postgres psql -c "SELECT version();" | grep PostgreSQL		##= PostgreSQL 13.10 (Ubuntu 13.10-1.pgdg20.04+1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 9.4.0-1ubuntu1~20.04.1) 9.4.0, 64-bit
-	
-sudo -u postgres psql -t -c "SELECT usename FROM pg_catalog.pg_user;"
-=							
-	postgres
-	acme_db_admin		## пользователь существует
+$ docker --version							##=OUTPUT: Docker version 23.0.1, build a5ee5b1
+$ systemctl status docker | grep Active					##=OUTPUT: Active: active (running) since Wed 2023-03-08 17:46:03 UTC; 7min ago
+$ systemctl status postgresql | grep Active				##=OUTPUT: Active: active (exited) since Wed 2023-03-08 17:36:10 UTC; 17min ago
+$ sudo -u postgres psql -c "SELECT version();" | grep PostgreSQL	##=OUTPUT: PostgreSQL 13.10 (Ubuntu 13.10-1.pgdg20.04+1) on x86_64-pc-linux-gnu ..
 
-sudo -u postgres psql -t -c "SELECT datname FROM pg_catalog.pg_database;"
- 
-	postgres
-	template1
-	template0
-	acme_db				## БД существует
+$ sudo -u postgres psql -t -c "SELECT usename FROM pg_catalog.pg_user;"
+=OUTPUT:							
+postgres
+acme_db_admin		## пользователь существует
+
+$ sudo -u postgres psql -t -c "SELECT datname FROM pg_catalog.pg_database;"
+=OUTPUT:
+postgres
+template1
+template0
+acme_db				## БД существует
 
 
 09. На U20
@@ -327,16 +325,14 @@ sudo -u postgres psql -t -c "SELECT datname FROM pg_catalog.pg_database;"
 	- копируем каталог "app" из ~/projects в "/srv/app"
 	- переходим в /srv/app и запускаем скрипт сборки Docker Образа и запуска Контейнера
 
-mkdir ~/projects && cd ~/projects
-git clone https://github.com/VictorNuzhdin/sf-pr07-terraform-ansible-docker-postgresql-python-webapp.git
-cd sf-pr07-terraform-ansible-docker-postgresql-python-webapp
-cp -r ~/project/app /srv/app
+$ mkdir ~/projects && cd ~/projects
+$ git clone https://github.com/VictorNuzhdin/sf-pr07-terraform-ansible-docker-postgresql-python-webapp.git
+$ cd sf-pr07-terraform-ansible-docker-postgresql-python-webapp
+$ cp -r ~/project/app /srv/app
 
-cd /srv/app
-./docker_build_run.sh
-
-=
-<pre>
+$ cd /srv/app
+$ ./docker_build_run.sh
+=OUTPUT:
 =Build and Run Docker Image:
 [+] Building 1.9s (11/11) FINISHED
  => [internal] load build definition from Dockerfile                                                                                 0.1s
@@ -378,43 +374,40 @@ backingFsBlockDev  metadata.db  vol-webapp
 
 =Docker app volume directory content:
 conf  requirements.txt  web.py
-</pre>
 
-
+---
 10. С любого хоста у которого есть доступ в интернет с помощью веб-браузера проверяем
 	
 chrome: http://51.250.111.210
-<pre>
-Hello there!
-Everything is OK! DB Query was completed by 'acme_db_admin' user.
----
-PostgreSQL Application start time: 2023-03-08 23:33:39.461503
-</pre>
+=OUTPUT:
+  Hello there!
+  Everything is OK! DB Query was completed by 'acme_db_admin' user.
+  ---
+  PostgreSQL Application start time: 2023-03-08 23:33:39.461503
 
 
 11. Скриншоты на различных этапах создания проекта
 
 11.1 Дашборд Каталога
-![screen](_screens/01_dashboard.png?raw=true)
-
+_screens/01_dashboard.png
 
 11.2 Сети
-![screen](_screens/02_networks.png?raw=true)
+_screens/02_networks.png
 
 11.3 Подсети
-![screen](_screens/03_subnetworks.png?raw=true)
+_screens/03_subnetworks.png
 
 11.4 Виртуальные машины
-![screen](_screens/04_instances.png?raw=true)
+_screens/04_instances.png
 
 11.5 ВМ1 (основная) - Сборка и запуск Docker Образа
-![screen](_screens/05_instance1_docker.png?raw=true)
+_screens/05_instance1_docker.png
 
 11.6 ВМ1 (основная) - Результат работы веб-приложения в браузере на Windows хосте
-![screen](_screens/06_instance1_webapp_result.png?raw=true)
+_screens/06_instance1_webapp_result.png
 
 11.7 ВМ2 (тестовая) - Сборка и запуск Docker Образа
-![screen](_screens/07_instance2_docker.png?raw=true)
+_screens/07_instance2_docker.png
 
 11.8 ВМ2 (тестовая) - Результат работы веб-приложения в браузере на Windows хосте
-![screen](_screens/08_webapp2_result.png?raw=true)
+_screens/08_webapp2_result.png
