@@ -1,0 +1,26 @@
+## Hosts
+#
+[ubuntu_server_vm1]
+51.250.23.67
+
+
+## Hosts groups
+#
+[all:children]
+ubuntu_server_vm1
+
+[app_servers:children]
+ubuntu_server_vm1
+
+
+## Hosts variables (hostvars)
+#
+[app_servers:vars]
+postgresql_install_version=13
+postgresql_custom_db_name=acme_db
+postgresql_custom_db_user=acme_db_admin
+postgresql_custom_db_pass=pass1234
+docker_container_network=172.17.0.0/24
+
+#[all:vars]
+#var_name=value

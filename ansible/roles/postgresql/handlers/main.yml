@@ -1,0 +1,16 @@
+---
+# handlers file for postgresql
+#
+# Restart PostgreSQL service
+- name: postgresql_restart
+  service: #ansible.builtin.service
+    name: postgresql
+    state: restarted
+
+# Reload PostgreSQL configs (pg_hba.conf and pg_ident.conf)
+- name: postgresql_reloadconf
+  become: true
+  become_user: postgres
+  #
+  #sudo -u postgres psql -c "SELECT pg_reload_conf();"
+  shell: psql -c "SELECT pg_reload_conf();"

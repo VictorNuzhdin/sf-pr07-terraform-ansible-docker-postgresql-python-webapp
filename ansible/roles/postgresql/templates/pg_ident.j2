@@ -1,0 +1,12 @@
+# PostgreSQL User Name Maps
+# =========================
+#
+# Refer to the PostgreSQL documentation, chapter "Client Authentication"
+# for a complete description.
+#
+# Put your actual configuration here
+# ----------------------------------
+
+# MAPNAME       SYSTEM-USERNAME         PG-USERNAME
+#user1          devops                  acme_db_admin
+user1           devops                  {{ postgresql_custom_db_user }}

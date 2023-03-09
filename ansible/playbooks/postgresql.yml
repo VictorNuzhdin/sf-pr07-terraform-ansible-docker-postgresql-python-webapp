@@ -1,0 +1,7 @@
+---
+# playbook file for Dev hosts
+- hosts: app_servers
+  gather_facts: yes
+  become: true
+  roles:
+    - name: postgresql

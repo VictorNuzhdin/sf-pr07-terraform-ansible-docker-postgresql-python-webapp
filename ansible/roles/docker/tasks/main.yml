@@ -1,0 +1,83 @@
+---
+# tasks file for docker
+#
+## OS Dependend steps: for Ubuntu 20 only
+- block:
+  # Install Dependencies
+  - name: Ubuntu(20) - Install aptitude
+    apt:
+      name: aptitude
+      state: latest
+      update_cache: true
+
+  - name: Ubuntu(20) - Install required system packages
+    apt:
+      pkg:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - software-properties-common
+        - python3-pip
+        - virtualenv
+        - python3-setuptools
+      state: latest
+      update_cache: true
+
+  # Install Repo and GPG Key
+  - name: Ubuntu(20) - Add Docker GPG apt Key
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      state: present
+
+  - name: Ubuntu(20) - Add Docker Repository
+    apt_repository:
+      repo: deb https://download.docker.com/linux/ubuntu focal stable
+      state: present
+
+  # Install latest Docker
+  - name: Ubuntu(20) - Update apt and install docker-ce
+    apt:
+      name: docker-ce
+      state: latest
+      update_cache: true
+
+  - name: Ubuntu(20) - Install Docker Module for Python
+    pip:
+      name: docker
+
+  # Add "devops" user to "docker" group to avoid typing sudo whenever you run the docker command
+  - name: Ubuntu(20) - Add devops user to docker group
+    shell: 'usermod -aG docker devops'
+
+  # Enable and restart Docker service
+  - name: Ubuntu(20) - Enable and restart Docker service
+    service:
+      name: docker
+      state: restarted
+      enabled: yes
+
+  # End block: start execution condition
+  when:
+    - ansible_facts['distribution'] == "Ubuntu"
+    - ansible_facts['distribution_major_version'] == "20"
+
+
+## OS Independent steps: all OS
+#
+# Debug outputs
+- name: Debug - Get OS version
+  shell: hostnamectl | grep System | awk '{print $3" "$4" "$5}'
+  register: os_version
+
+- name: Debug - Docker get version to stdout
+  command: 'docker --version'
+  register: docker_out1
+
+- name: Debug - Docker run hello-world
+  shell: 'docker run hello-world | grep Hello'
+  register: docker_out2
+
+# Catch and print outputs
+- debug: var=os_version.stdout_lines
+- debug: var=docker_out1.stdout_lines
+- debug: var=docker_out2.stdout_lines

@@ -1,0 +1,240 @@
+---
+# tasks file for postgresql
+#
+## Check if PostgreSQL version or database path is set
+- fail:
+    msg: "You must set PostgreSQL install Version in inventory/hosts file"
+  when: |
+    ((postgresql_install_version == '') or (postgresql_install_version is not defined))
+
+## Print inventory variables
+- name: Print test vars from inventory
+  debug: # ansible.builtin.debug
+    msg:
+      - 'INFO: PostgreSQL version to be installed..: {{ postgresql_install_version }}'
+      - 'INFO: PostgreSQL custom database name.....: {{ postgresql_custom_db_name }}'
+      - 'INFO: PostgreSQL custom database user.....: {{ postgresql_custom_db_user }}'
+      - 'INFO: PostgreSQL custom database password.: {{ postgresql_custom_db_pass }}'
+
+## BLOCK: OS Dependend steps: for Ubuntu 20 only
+- block:
+  ## Install Repo for latest PostgreSQL versions
+  - name: Ubuntu(20) - Import the GPG signing key for the postgresql repository
+    apt_key:
+      url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+      state: present
+    become: true
+
+  - name: Ubuntu(20) - Add postgresql repository to local apt db
+    apt_repository:
+      repo: "deb http://apt.postgresql.org/pub/repos/apt/ focal-pgdg main"
+      state: present
+    become: true
+
+  - name: Ubuntu(20) - Update local packages cache before install
+    apt:
+      update_cache: yes
+    become: true
+
+  ## Install PostgreSQL
+  - name: Ubuntu(20) - Install PostgreSQL {{ postgresql_install_version }}
+    apt:
+      name: "postgresql-{{ postgresql_install_version }}"
+      state: present
+      update_cache: yes
+    become: true
+
+  ## Install Python PostgreSQL dependencies
+  - name: Ubuntu(20) - Install dependencies for Python3 PostgreSQL adapter
+    apt: # ansible.builtin.apt
+      name:
+        - libpq-dev
+        - python3-psycopg2
+      state: present
+
+  ## DEPRICATED: Install System and Python dependencies to fix permission issue with unprivileged access to Ansible temp files
+  ## *Invoking "apt" only once while using a loop via squash_actions is deprecated.
+  ## *This feature will be removed from ansible-base in version 2.11
+  #- name: Ubuntu(20) - Install dependencies for Python3 PostgreSQL adapter
+  #  apt: # ansible.builtin.apt
+  #    name: "{{ item }}"
+  #    state: present
+  #  with_items:
+  #    - acl
+  #    - python3-pip
+
+  ## FIXED: Install System and Python dependencies to fix permission issue with unprivileged access to Ansible temp files
+  - name: Ubuntu(20) - Install dependencies to fix permission issue for access to temp files
+    apt: # ansible.builtin.apt
+      name: ['acl', 'python3-pip']
+      state: present
+
+
+  ## Set firewall rules (open 5432 tcp port)
+  - name: Ubuntu(20) - Open firewall port 5432 tcp
+    shell: |
+      ufw allow 5432/tcp
+      exit 0
+  # End block: start execution condition
+  when:
+    - ansible_facts['distribution'] == "Ubuntu"
+    - ansible_facts['distribution_major_version'] == "20"
+
+
+## Check PostgreSQL Service Existsing
+- name: System - Check if PostgreSQL Service Exists
+  stat: # ansible.builtin.stat
+    path: '/etc/init.d/postgresql'
+  register: pg_service_check
+
+
+## BLOCK: Change PostgreSQL settings and restart postgresql service
+- block:
+  ## Generate protected md5 password for PostgreSQL DB by formula (v1)
+  ## formula: "md5" + md5(password + username)
+  - name: PostgreSQL - Generate md5 password sequence from username and string password
+    shell: |
+      #printf "md5"`echo -n "pass1234acme_db_admin" | md5sum | awk '{print $1}'` > /home/devops/secret
+      printf "md5"`echo -n "{{ postgresql_custom_db_pass }}{{ postgresql_custom_db_user }}" | md5sum | awk '{print $1}'` > /home/devops/secret
+      printf "MY_HASHED_PGPASS=md5"`echo -n "{{ postgresql_custom_db_pass }}{{ postgresql_custom_db_user }}" | md5sum | awk '{print $1}'`"\n" >> /etc/environment
+      printf "PGPASSWORD={{ postgresql_custom_db_pass }}\n" >> /etc/environment
+      source /etc/environment
+      exit 0
+    become: true
+
+  ## Generates protected md5 password for PostgreSQL DB by formula (v2)
+  ## formula: "md5" + md5(password + username)
+  - name: PostgreSQL - Generate md5 hashed password by formula
+    vars:
+      #pg_pass_user_str: pass1234acme_db_admin
+      pg_pass_user_str: "{{ postgresql_custom_db_pass }}{{ postgresql_custom_db_user }}"
+    #
+    debug: # ansible.builtin.debug
+      msg:
+        pg_pass_user_md5: 'md5{{ pg_pass_user_str | md5 }}'
+      ## ERROR: invalid option for debug: register
+      #register: pg_hashed_userpass
+
+  ## Creates new custom database
+  - name: PostgreSQL - Create custom database
+    become: true
+    become_user: postgres
+    #
+    community.postgresql.postgresql_db:
+      name: '{{ postgresql_custom_db_name }}'
+      state: present
+      #login_host: "127.0.0.1"
+      #login_port: 5432
+      #login_user: "postgres"
+      #login_password: ""
+      #maintenance_db: "postgres"
+      encoding: UTF-8
+      lc_collate: en_US.UTF-8
+      lc_ctype: en_US.UTF-8
+      conn_limit: "-1"
+      tablespace: pg_default
+
+
+  ## Creates new custom database user and grant all privs for them to custom database
+  - name: PostgreSQL - Create custom database user
+    become: true
+    become_user: postgres
+    vars:
+      pg_pass_user_str: "{{ postgresql_custom_db_pass }}{{ postgresql_custom_db_user }}"
+    #
+    community.postgresql.postgresql_user:
+      db: '{{ postgresql_custom_db_name }}'
+      name: '{{ postgresql_custom_db_user }}'
+      #password: '{{ postgresql_custom_db_pass }}'
+      password: 'md5{{ pg_pass_user_str | md5 }}'
+      priv: ALL
+
+  ## PostgreSQL - Allow custom user authentication by login and password (pg_hba.conf)
+  - name: Grant full access for custom user to custom database using md5 authentication
+    community.postgresql.postgresql_pg_hba:
+      dest: "/etc/postgresql/{{ postgresql_install_version }}/main/pg_hba.conf"
+      state: present
+      mode: "u=rw,g=r,o="
+      contype: local
+      users: "{{ postgresql_custom_db_user }}"
+      source: all
+      #databases: "{{ postgresql_custom_db_name }}"
+      databases: all
+      method: md5
+      create: true
+      backup: true
+      backup_file: "/etc/postgresql/{{ postgresql_install_version }}/main/pg_hba.conf.back"
+    # Call handler
+    #notify: postgresql_restart
+    notify: postgresql_reloadconf
+
+
+  ## PostgreSQL - Map operating system user (devops) to PostgreSQL user (pg_ident.conf)
+  - name: PostgreSQL - Set new configuration using config template (Jinja2)
+    template:
+      src: "../templates/pg_ident.j2"
+      #dest: "/etc/postgresql/13/main/pg_ident.conf"
+      dest: "/etc/postgresql/{{ postgresql_install_version }}/main/pg_ident.conf"
+      backup: true
+      force: true
+      remote_src: false
+    # Call handler
+    #notify: postgresql_restart
+
+  ## PostgreSQL - Set file permissions for PostgreSQL conf file (pg_ident.conf)
+  - name: PostgreSQL - Set file permissions for PostgreSQL conf file (pg_ident.conf)
+    file:
+      #path: "/etc/postgresql/13/main/pg_ident.conf"
+      path: "/etc/postgresql/{{ postgresql_install_version }}/main/pg_ident.conf"
+      state: touch
+      owner: 'postgres'
+      group: 'postgres'
+      mode: 'u=rw,g=r,o='
+      modification_time: preserve
+      access_time: preserve
+
+
+  ## Changes config settings - Set listening interfaces to all
+  #  /etc/postgresql/13/main/postgresql.conf
+  - name: PostgreSQL - Set conf param (listen_addresses)
+    lineinfile:
+      dest: "/etc/postgresql/{{ postgresql_install_version }}/main/postgresql.conf"
+      regexp: "^#listen_addresses = "
+      line: "listen_addresses = '*'"
+    # Call handler
+    notify: postgresql_restart
+  # End block: start execution condition
+  when:
+    - pg_service_check.stat.exists
+
+
+## Get result Info
+#
+# Debug outputs
+- name: Debug - Get OS version (Debian like)
+  shell: hostnamectl | grep System | awk '{print $3" "$4" "$5}'
+  register: os_version
+
+- name: Debug - Get PostgreSQL service status
+  shell: systemctl status postgresql | grep Active
+  register: pg_service_status
+
+- name: Debug - Get PostgreSQL installed version (from file)
+  shell: "cat /var/lib/postgresql/{{ postgresql_install_version }}/main/PG_VERSION"
+  register: pg_installed_version_from_file
+
+- name: Debug - Get PostgreSQL installed version (from bin)
+  shell: "/usr/lib/postgresql/{{ postgresql_install_version }}/bin/postgres -V"
+  register: pg_installed_version_from_bin
+
+- name: Debug - Show PostgreSQL current database path
+  debug: # ansible.builtin.debug
+    msg:
+      - 'INFO: PostgreSQL current database path is: /var/lib/postgresql/{{ postgresql_install_version }}/main'
+
+# Catch and print outputs
+- debug: var=os_version.stdout_lines
+- debug: var=pg_service_status.stdout_lines
+- debug: var=pg_installed_version_from_file.stdout_lines
+- debug: var=pg_installed_version_from_bin.stdout_lines
+#- debug: var=pg_hashed_userpass.stdout_lines
