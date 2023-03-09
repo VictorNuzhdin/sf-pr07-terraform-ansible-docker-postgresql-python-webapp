@@ -8,7 +8,7 @@ For Skill Factory study project (PR07 or PR04?)
 - условно локальный хост с которого происходит создание ресурсов в Облаке с помощью Terraform 
   и применение к ним Ansible конфигурации с Ролями "postgresql" и "docker" (IaC конфигурация);
 2 Управляемый хост (Ubuntu 20.04) - secondary host (U20)
-  - удаленный хост в Облаке к которому применяется IaC конфигурация;
+- удаленный хост в Облаке к которому применяется IaC конфигурация;
 
 
 01. На U22
@@ -32,7 +32,7 @@ terraform validate
 terraform plan
 terraform apply
 
-=
+=OTPUT:
 Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
 Outputs:
 vm1_name_external_ip = "ubuntu1: 158.160.14.119"
@@ -75,11 +75,13 @@ $ exit
 - применяем Ansiblе Роли "postgresql" и "docker" к U20
 
 $ ansible --version | grep "ansible 2"
+
 =OUTPUT:
   ansible 2.10.8
 
-
+---
 $ ansible all -m ping
+
 =OUTPUT:
 158.160.14.119 | SUCCESS => {
 	"ansible_facts": {
@@ -89,13 +91,16 @@ $ ansible all -m ping
 	"ping": "pong"
 }
 
-
+---
 $ ansible-playbook /etc/ansible/playbooks/postgresql.yml --syntax-check
+
 =OUTPUT:
 playbook: /etc/ansible/playbooks/postgresql.yml
 
 
+---
 $ ansible-playbook /etc/ansible/playbooks/postgresql.yml --limit "ubuntu_server_vm1"
+
 =OUTPUT:
 PLAY [app_servers] *********************************************************************************************************************************
 
@@ -226,10 +231,13 @@ PLAY RECAP *********************************************************************
 
 ---
 $ ansible-playbook /etc/ansible/playbooks/docker.yml --syntax-check
+
 =OUTPUT:
   playbook: /etc/ansible/playbooks/docker.yml
 
+---
 $ ansible-playbook /etc/ansible/playbooks/docker.yml --limit "ubuntu_server_vm1"
+
 =OUTPUT:
 PLAY [app_servers] *********************************************************************************************************************************
 
@@ -307,11 +315,14 @@ $ systemctl status postgresql | grep Active				##=OUTPUT: Active: active (exited
 $ sudo -u postgres psql -c "SELECT version();" | grep PostgreSQL	##=OUTPUT: PostgreSQL 13.10 (Ubuntu 13.10-1.pgdg20.04+1) on x86_64-pc-linux-gnu ..
 
 $ sudo -u postgres psql -t -c "SELECT usename FROM pg_catalog.pg_user;"
+
 =OUTPUT:							
 postgres
 acme_db_admin		## пользователь существует
 
+---
 $ sudo -u postgres psql -t -c "SELECT datname FROM pg_catalog.pg_database;"
+
 =OUTPUT:
 postgres
 template1
@@ -319,11 +330,12 @@ template0
 acme_db				## БД существует
 
 
+---
 09. На U20
-	- эта часть не автоматризирована и ее нужно выполнять вручную (возможно не установлен git клиент на U20)
-	- клонируем репозиторий с кодом приложения в произвольный каталог (например в ~/projects)
-	- копируем каталог "app" из ~/projects в "/srv/app"
-	- переходим в /srv/app и запускаем скрипт сборки Docker Образа и запуска Контейнера
+- эта часть не автоматризирована и ее нужно выполнять вручную (возможно не установлен git клиент на U20)
+- клонируем репозиторий с кодом приложения в произвольный каталог (например в ~/projects)
+- копируем каталог "app" из ~/projects в "/srv/app"
+- переходим в /srv/app и запускаем скрипт сборки Docker Образа и запуска Контейнера
 
 $ mkdir ~/projects && cd ~/projects
 $ git clone https://github.com/VictorNuzhdin/sf-pr07-terraform-ansible-docker-postgresql-python-webapp.git
@@ -332,6 +344,7 @@ $ cp -r ~/project/app /srv/app
 
 $ cd /srv/app
 $ ./docker_build_run.sh
+
 =OUTPUT:
 =Build and Run Docker Image:
 [+] Building 1.9s (11/11) FINISHED
@@ -379,13 +392,14 @@ conf  requirements.txt  web.py
 10. С любого хоста у которого есть доступ в интернет с помощью веб-браузера проверяем
 	
 chrome: http://51.250.111.210
+
 =OUTPUT:
   Hello there!
   Everything is OK! DB Query was completed by 'acme_db_admin' user.
   ---
   PostgreSQL Application start time: 2023-03-08 23:33:39.461503
 
-
+---
 11. Скриншоты на различных этапах создания проекта
 
 11.1 Дашборд Каталога
