@@ -1,31 +1,30 @@
 # sf-pr07-terraform-ansible-docker-postgresql-python-webapp
 For Skill Factory study project (PR07 or PR04?)
 
-
+<br>
+<pre>
 --КРАТКАЯ ИНСТРУКЦИЯ
 
-**Управляющий хост (Ubuntu 22.04) - primary host (U22)
+Управляющий хост (Ubuntu 22.04) - primary host (U22)
 - условно локальный хост с которого происходит создание ресурсов в Облаке с помощью Terraform 
   и применение к ним Ansible конфигурации с Ролями "postgresql" и "docker" (IaC конфигурация);
-**Управляемый хост (Ubuntu 20.04) - secondary host (U20)
+
+Управляемый хост (Ubuntu 20.04) - secondary host (U20)
 - удаленный хост в Облаке к которому применяется IaC конфигурация;
 
-
-01.	На U22
-	- клонируем репозиторий в рабочий каталог
+01. На U22
+- клонируем репозиторий в рабочий каталог
 
 cd work_dir
 git clone https://github.com/VictorNuzhdin/sf-pr07-terraform-ansible-docker-postgresql-python-webapp.git
 
-
 02. На U22
-	- настраиваем Terraform и Ansible окружение
-    - описание вне рамок текущего проекта
-
+- настраиваем Terraform и Ansible окружение
+- описание вне рамок текущего проекта
 
 03. На U22
-	- с помощью Terraform создаем виртуальную машину в Yandex.Cloud
-    - в результате получаем Terraform output переменную с публичным ip-адресом ВМ
+- с помощью Terraform создаем виртуальную машину в Yandex.Cloud
+- в результате получаем Terraform output переменную с публичным ip-адресом ВМ
 
 cd terraform
 terraform validate
@@ -36,20 +35,18 @@ terraform apply
 Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
 Outputs:
 vm1_name_external_ip = "ubuntu1: 158.160.14.119"
-
+</pre>
 
 04. На U22
-	- подключаемся к U20 по ssh:
-    - ВМ на SH создается со встроенной учетной записью "ubuntu"
-	  настроена авторизация по ssh-ключу
-	  который должен быть расположен по пути
-	  ~/.ssh/id_ed25519
+    - подключаемся к U20 по ssh:
+    - ВМ на SH создается со встроенной учетной записью "ubuntu" настроена авторизация по ssh-ключу
+      который должен быть расположен по пути ~/.ssh/id_ed25519
 
 ssh -i ~/.ssh/id_ed25519 ubuntu@158.160.14.119
-
+</pre>
 
 05. На U20
-	- создаем учетную запись "devops" и настравиваем авторизацию по ssh ключу
+    - создаем учетную запись "devops" и настравиваем авторизацию по ssh ключу
 
 sudo -i
 useradd -m -G sudo -s /bin/bash devops
@@ -59,19 +56,18 @@ ssh-keygen -t ed25519 -C "devops@acme.local"
 
 
 06. На U22
-	- копируем public часть pivate ключа учетной записи "devops" на U20 в список разрешенных известных хостов
-	  для возможности авторизации по ключу
-	- подключаемся по ssh к U20 (подключение должно пройти сразу без запроса пароля и выходим из ssh сессии)
-	
+    - копируем public часть pivate ключа учетной записи "devops" на U20 в список разрешенных известных хостов для возможности авторизации по ключу
+    - подключаемся по ssh к U20 (подключение должно пройти сразу без запроса пароля и выходим из ssh сессии)
+
 ssh-copy-id -i ~/.ssh/id_ed25519 devops@158.160.14.119
 ssh devops@158.160.14.119
 exit
 
 
 07. На U22
-	- выполняем Ansible тест ssh ответа от U20 (ping-pong тест)
-	  при этом пароль запрашиваться не должен если все настроено правильно;
-	- применяем Ansiblе Роли "postgresql" и "docker" к U20
+    - выполняем Ansible тест ssh ответа от U20 (ping-pong тест)
+      при этом пароль запрашиваться не должен если все настроено правильно;
+    - применяем Ansiblе Роли "postgresql" и "docker" к U20
 
 ansible --version | grep "ansible 2"
 =
@@ -80,23 +76,22 @@ ansible --version | grep "ansible 2"
 
 ansible all -m ping
 =
-	158.160.14.119 | SUCCESS => {
-		"ansible_facts": {
-			"discovered_interpreter_python": "/usr/bin/python3"
-		},
-		"changed": false,
-		"ping": "pong"
-	}
+158.160.14.119 | SUCCESS => {
+	"ansible_facts": {
+		"discovered_interpreter_python": "/usr/bin/python3"
+	},
+	"changed": false,
+	"ping": "pong"
+}
 
 
 ansible-playbook /etc/ansible/playbooks/postgresql.yml --syntax-check
 =
-	playbook: /etc/ansible/playbooks/postgresql.yml
+playbook: /etc/ansible/playbooks/postgresql.yml
 
 
 ansible-playbook /etc/ansible/playbooks/postgresql.yml --limit "ubuntu_server_vm1"
 =
-<pre>
 PLAY [app_servers] *********************************************************************************************************************************
 
 TASK [Gathering Facts] *****************************************************************************************************************************
@@ -222,17 +217,15 @@ changed: [158.160.14.119]
 
 PLAY RECAP *****************************************************************************************************************************************
 158.160.14.119             : ok=29   changed=9    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
-</pre>
-
 
 
 $ ansible-playbook /etc/ansible/playbooks/docker.yml --syntax-check
 =
-	playbook: /etc/ansible/playbooks/docker.yml
+  playbook: /etc/ansible/playbooks/docker.yml
 
 
 $ ansible-playbook /etc/ansible/playbooks/docker.yml --limit "ubuntu_server_vm1"
-<pre>
+
 PLAY [app_servers] *********************************************************************************************************************************
 
 TASK [Gathering Facts] *****************************************************************************************************************************
@@ -295,7 +288,6 @@ ok: [158.160.14.119] => {
 
 PLAY RECAP *****************************************************************************************************************************************
 158.160.14.119             : ok=15   changed=11   unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
-</pre>
 
 
 08. На U22 (после успешного применение Ansible ролей к U20)
@@ -336,7 +328,6 @@ cd /srv/app
 ./docker_build_run.sh
 
 =
-<pre>
 =Build and Run Docker Image:
 [+] Building 1.9s (11/11) FINISHED
  => [internal] load build definition from Dockerfile                                                                                 0.1s
@@ -378,13 +369,12 @@ backingFsBlockDev  metadata.db  vol-webapp
 
 =Docker app volume directory content:
 conf  requirements.txt  web.py
-</pre>
 
 
 10. С любого хоста у которого есть доступ в интернет с помощью веб-браузера проверяем
 	
 chrome: http://51.250.111.210
-<pre>
+
 Hello there!
 Everything is OK! DB Query was completed by 'acme_db_admin' user.
 ---
